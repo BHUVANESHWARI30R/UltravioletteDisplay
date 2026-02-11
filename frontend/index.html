@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>KM LED Display</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Teko:wght@600;700&display=swap" rel="stylesheet">
+
+<style>
+html, body {
+    margin: 0;
+    width: 480px;
+    height: 80px;
+    background: black;
+    overflow: hidden;
+    font-family: 'Teko', sans-serif;
+}
+
+.led {
+    position: relative;
+    width: 480px;
+    height: 80px;
+    padding: 5px 10px;
+    box-sizing: border-box;
+}
+
+/* Light Trail */
+.trail {
+    position: absolute;
+    top: 40px;
+    left: -120px;
+    width: 140px;
+    height: 4px;
+    background: linear-gradient(
+        90deg,
+        rgba(255,210,0,0),
+        rgba(255,210,0,1),
+        rgba(255,210,0,0)
+    );
+    box-shadow: 0 0 14px rgba(255,210,0,0.9);
+    opacity: 0;
+    transition: left 2.2s linear, opacity 0.4s ease;
+}
+
+.trail.move {
+    left: 480px;
+    opacity: 1;
+}
+
+.trail.hide {
+    opacity: 0;
+}
+
+/* KM Container */
+.km-box {
+    opacity: 0;
+    transition: opacity 0.6s ease;
+}
+
+.km-box.show {
+    opacity: 1;
+}
+
+/* Label */
+.label {
+    font-size: 18px;
+    letter-spacing: 2px;
+    color: #ffffff;
+    opacity: 0.8;
+}
+
+/* KM Row */
+.km-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+/* KM Value */
+.km {
+    font-size: 54px;
+    font-weight: 700;
+    color: #FFD200;
+    line-height: 1;
+    text-shadow: 0 0 16px rgba(255,210,0,0.95);
+}
+
+/* KM Unit */
+.unit {
+    font-size: 22px;
+    color: #ffffff;
+    opacity: 0.9;
+}
+/*.scale {
+    transform: scale(0.5);
+    transform-origin: top left;
+    width: 240px;
+    height: 40px;
+    overflow: hidden;
+}*/
+
+</style>
+</head>
+
+<body>
+<!--<div class="scale">-->
+<div class="led">
+
+    <div class="trail" id="trail"></div>
+
+    <div class="km-box" id="kmBox">
+        <div class="label">TOTAL DISTANCE COVERED</div>
+        <div class="km-row">
+            <div class="km" id="kmValue">0</div>
+            <div class="unit">KM</div>
+        </div>
+    </div>
+
+</div>
+<!--</div>-->
+
+<script>
+const BACKEND_URL = "http://localhost:3000/api/km";
+const LOOP_INTERVAL = 120000; // 2 minutes
+
+const trail = document.getElementById("trail");
+const kmBox = document.getElementById("kmBox");
+const kmValue = document.getElementById("kmValue");
+
+let targetKM = 0;
+
+// Indian format
+function formatIndian(num) {
+    return num.toLocaleString("en-IN");
+}
+
+// KM count animation
+function animateKM(end) {
+    let current = 0;
+    const step = Math.max(1, Math.floor(end / 100));
+
+    const timer = setInterval(() => {
+        current += step;
+        if (current >= end) {
+            current = end;
+            clearInterval(timer);
+        }
+        kmValue.textContent = formatIndian(current);
+    }, 18);
+}
+
+// Fetch KM
+async function fetchKM() {
+    try {
+        const res = await fetch(BACKEND_URL);
+        const data = await res.json();
+        targetKM = Math.floor(data.value);
+    } catch {
+        targetKM = 0;
+    }
+}
+
+// Reset trail
+function resetTrail() {
+    trail.className = "trail";
+    trail.style.left = "-120px";
+    trail.style.opacity = "0";
+    void trail.offsetWidth;
+}
+
+// Play animation once
+async function playOnce() {
+    kmBox.className = "km-box";
+    kmValue.textContent = "";
+
+    await fetchKM();
+    resetTrail();
+
+    setTimeout(() => {
+        trail.style.opacity = "1";
+        trail.classList.add("move");
+    }, 300);
+
+    setTimeout(() => {
+        trail.classList.add("hide");
+    }, 2500);
+
+    setTimeout(() => {
+        kmBox.classList.add("show");
+        animateKM(targetKM);
+    }, 2700);
+}
+
+// Initial + 2 min loop
+playOnce();
+setInterval(playOnce, LOOP_INTERVAL);
+</script>
+
+</body>
+</html>
